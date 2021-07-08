@@ -51,3 +51,6 @@ class Compressor(Enum):
     PAA = 5
     PLA = 6
     LZ4 = 7
+
+# UseNew=True
+# UseNew=False

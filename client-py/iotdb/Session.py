@@ -84,6 +84,7 @@ class Session(object):
         self.__session_id = None
         self.__statement_id = None
         self.__zone_id = zone_id
+        self.values_in_bytes = None
 
     def open(self, enable_rpc_compression):
         if not self.__is_close:
@@ -403,13 +404,18 @@ class Session(object):
     def gen_insert_record_req(
         self, device_id, timestamp, measurements, data_types, values
     ):
+        # if self.values_in_bytes != None:
+        #     return TSInsertRecordReq(
+        #         self.__session_id, device_id, measurements, self.values_in_bytes, timestamp
+        #     )
         if (len(values) != len(data_types)) or (len(values) != len(measurements)):
             raise RuntimeError(
                 "length of data types does not equal to length of values!"
             )
-        values_in_bytes = Session.value_to_bytes(data_types, values)
+        self.values_in_bytes = Session.value_to_bytes(data_types, values)
+
         return TSInsertRecordReq(
-            self.__session_id, device_id, measurements, values_in_bytes, timestamp
+            self.__session_id, device_id, measurements, self.values_in_bytes, timestamp
         )
 
     def gen_insert_str_record_req(
