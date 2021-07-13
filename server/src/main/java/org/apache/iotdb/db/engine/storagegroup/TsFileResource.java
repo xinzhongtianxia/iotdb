@@ -828,6 +828,8 @@ public class TsFileResource {
     if (closed) {
       try {
         serialize();
+        logger.error("serialize TsFileResource {} when updating plan Index", this);
+        System.exit(1);
       } catch (IOException e) {
         logger.error(
             "Cannot serialize TsFileResource {} when updating plan index {}-{}",
