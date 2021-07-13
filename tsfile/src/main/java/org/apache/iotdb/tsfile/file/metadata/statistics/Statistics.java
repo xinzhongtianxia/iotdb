@@ -165,7 +165,7 @@ public abstract class Statistics<T> {
    * @throws StatisticsClassException cannot merge statistics
    */
   public void mergeStatistics(Statistics stats) {
-    if (this.getClass() == stats.getClass()) {
+    if (this.getType() == stats.getType()) {
       if (stats.startTime < this.startTime) {
         this.startTime = stats.startTime;
       }
@@ -179,8 +179,8 @@ public abstract class Statistics<T> {
     } else {
       String thisClass = this.getClass().toString();
       String statsClass = stats.getClass().toString();
-      LOG.warn("Statistics classes mismatched,no merge: {} v.s. {}", thisClass, statsClass);
-
+      LOG.error("Statistics datatype mismatched,no merge: {} v.s. {}", thisClass, statsClass);
+      System.exit(1);
       throw new StatisticsClassException(this.getClass(), stats.getClass());
     }
   }

@@ -890,6 +890,10 @@ public class StorageGroupProcessor {
     }
 
     try {
+      if (!config.isEnablePartition() && start != 0) {
+        logger.error("start index in InsertTabletPlan != 0");
+        System.exit(1);
+      }
       tsFileProcessor.insertTablet(insertTabletPlan, start, end, results);
     } catch (WriteProcessRejectException e) {
       logger.warn("insert to TsFileProcessor rejected, {}", e.getMessage());

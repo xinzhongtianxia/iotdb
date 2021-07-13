@@ -811,6 +811,21 @@ public class TsFileProcessor {
 
   private void endFile() throws IOException, TsFileProcessorException {
     long closeStartTime = System.currentTimeMillis();
+
+    Map<String, List<ChunkMetadata>> deviceChunkMetadatas = writer.getDeviceChunkMetadataMap();
+
+    for (String device: tsFileResource.deviceToIndex.keySet()) {
+      long startTimeInResource = tsFileResource.getStartTime(device);
+      List<ChunkMetadata> chunkMetadatas = deviceChunkMetadatas.get(device);
+      for (ChunkMetadata chunkMetadata: chunkMetadatas) {
+        if (chunkMetadata.getStartTime() < startTimeInResource) {
+          logger.error("chunkMetadata's startTime: {} < startTimeInResource: {}",
+              chunkMetadata.getStartTime(), startTimeInResource);
+          System.exit(1);
+        }
+      }
+    }
+
     tsFileResource.serialize();
     writer.endFile();
     tsFileResource.cleanCloseFlag();

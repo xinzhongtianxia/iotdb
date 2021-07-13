@@ -80,16 +80,13 @@ public class ExclusiveWriteLogNode implements WriteLogNode, Comparable<Exclusive
   }
 
   @Override
-  public void write(PhysicalPlan plan) throws IOException {
+  public void write(PhysicalPlan plan) {
     lock.writeLock().lock();
     try {
       putLog(plan);
       if (bufferedLogNum >= config.getFlushWalThreshold()) {
         sync();
       }
-    } catch (BufferOverflowException e) {
-      throw new IOException(
-          "Log cannot fit into the buffer, please increase wal_buffer_size", e);
     } finally {
       lock.writeLock().unlock();
     }
