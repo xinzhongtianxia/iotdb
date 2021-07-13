@@ -154,11 +154,13 @@ public abstract class TsFileManagement {
 
   public class CompactionOnePartitionUtil {
 
-    private CloseCompactionMergeCallBack closeCompactionMergeCallBack;
     private long timePartitionId;
 
+    private CloseCompactionMergeCallBack closeCompactionMergeCallBack;
+
     public CompactionOnePartitionUtil(
-        CloseCompactionMergeCallBack closeCompactionMergeCallBack, long timePartitionId) {
+        CloseCompactionMergeCallBack closeCompactionMergeCallBack,
+        long timePartitionId) {
       this.closeCompactionMergeCallBack = closeCompactionMergeCallBack;
       this.timePartitionId = timePartitionId;
     }
@@ -181,10 +183,8 @@ public abstract class TsFileManagement {
     @Override
     public void run() {
       recover();
-      // in recover logic, we do not have to start next compaction task, and in this case the param
-      // time partition is useless, we can just pass 0L
+      // in recover logic, the param time partition is useless, we can just pass 0L
       closeCompactionMergeCallBack.call(false, 0L);
-      clearCompactionStatus();
     }
   }
 

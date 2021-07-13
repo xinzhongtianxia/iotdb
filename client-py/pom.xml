@@ -68,6 +68,15 @@
                         </fileset>
                     </filesets>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>clean_thrift_from_python</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <!-- fill thrift folder -->
             <plugin>

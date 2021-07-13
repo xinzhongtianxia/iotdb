@@ -371,14 +371,9 @@ public class StorageGroupProcessor {
           .putAll(endTimeMap);
       globalLatestFlushedTimeForEachDevice.putAll(endTimeMap);
     }
-
-    if (IoTDBDescriptor.getInstance().getConfig().isEnableContinuousCompaction()) {
-      CompactionMergeTaskPoolManager.getInstance()
-          .submitTask(new CompactionAllPartitionTask(storageGroupName));
-    }
   }
 
-  public class CompactionAllPartitionTask extends StorageGroupCompactionTask{
+  public class CompactionAllPartitionTask extends StorageGroupCompactionTask {
 
     CompactionAllPartitionTask(String storageGroupName) {
       super(storageGroupName);
@@ -396,13 +391,12 @@ public class StorageGroupProcessor {
 
   private void recoverCompaction() {
     if (!CompactionMergeTaskPoolManager.getInstance().isTerminated()) {
-      logger.info("{} submit a compaction merge task", storageGroupName);
       try {
         CompactionMergeTaskPoolManager.getInstance()
             .submitTask(
-                tsFileManagement.new CompactionRecoverTask(this::closeCompactionMergeCallBack));
+                tsFileManagement.new CompactionRecoverTask(this::closeCompactionRecoverCallBack));
+        logger.info("{} submit a compaction merge task", storageGroupName);
       } catch (RejectedExecutionException e) {
-        this.closeCompactionMergeCallBack(false, 0);
         logger.error("{} compaction submit task failed", storageGroupName);
       }
     } else {
@@ -1324,8 +1318,7 @@ public class StorageGroupProcessor {
   }
 
   private void checkFileTTL(TsFileResource resource, long timeLowerBound, boolean isSeq) {
-    if (resource.isMerging()
-        || !resource.isClosed()
+    if (!resource.isClosed()
         || !resource.isDeleted() && resource.stillLives(timeLowerBound)) {
       return;
     }
@@ -1334,11 +1327,6 @@ public class StorageGroupProcessor {
     try {
       // prevent new merges and queries from choosing this file
       resource.setDeleted(true);
-      // the file may be chosen for merge after the last check and before writeLock()
-      // double check to ensure the file is not used by a merge
-      if (resource.isMerging()) {
-        return;
-      }
 
       // ensure that the file is not used by any queries
       if (resource.tryWriteLock()) {
@@ -1861,12 +1849,12 @@ public class StorageGroupProcessor {
     }
     logger.info("signal closing storage group condition in {}", storageGroupName);
 
-    CompactionMergeTaskPoolManager.getInstance().submitTask(
-        new CompactionOnePartitionTask(storageGroupName, tsFileProcessor.getTimeRangeId()));
+    CompactionMergeTaskPoolManager.getInstance()
+        .submitTask(
+            new CompactionOnePartitionTask(storageGroupName, tsFileProcessor.getTimeRangeId()));
   }
 
-
-  public class CompactionOnePartitionTask extends StorageGroupCompactionTask{
+  public class CompactionOnePartitionTask extends StorageGroupCompactionTask {
 
     private long partition;
 
@@ -1878,33 +1866,36 @@ public class StorageGroupProcessor {
     @Override
     public void run() {
       syncCompactOnePartition(
-          partition,
-          IoTDBDescriptor.getInstance().getConfig().isForceFullMerge());
+          partition, IoTDBDescriptor.getInstance().getConfig().isForceFullMerge());
       clearCompactionStatus();
     }
   }
 
   private void syncCompactOnePartition(long timePartition, boolean fullMerge) {
-    logger.info("{} submit a compaction merge task", storageGroupName);
     try {
       // fork and filter current tsfile, then commit then to compaction merge
       tsFileManagement.forkCurrentFileList(timePartition);
       tsFileManagement.setForceFullMerge(fullMerge);
-      tsFileManagement.new CompactionOnePartitionUtil(this::closeCompactionMergeCallBack, timePartition)
+      tsFileManagement
+          .new CompactionOnePartitionUtil(this::closeCompactionMergeCallBack, timePartition)
           .run();
     } catch (IOException e) {
-      this.closeCompactionMergeCallBack(false, timePartition);
       logger.error("{} compaction submit task failed", storageGroupName);
     }
   }
 
-  /** close compaction merge callback, to release some locks */
-  private void closeCompactionMergeCallBack(boolean isMerge, long timePartitionId) {
-    if (isMerge && IoTDBDescriptor.getInstance().getConfig().isEnableContinuousCompaction()) {
-      syncCompactOnePartition(
-          timePartitionId, IoTDBDescriptor.getInstance().getConfig().isForceFullMerge());
+  /** close recover compaction merge callback, to start continuous compaction */
+  private void closeCompactionRecoverCallBack(boolean isMerge, long timePartitionId) {
+    CompactionMergeTaskPoolManager.getInstance().clearCompactionStatus(storageGroupName);
+    if (IoTDBDescriptor.getInstance().getConfig().isEnableContinuousCompaction()) {
+      logger.info("{} recover finished, submit continuous compaction task", storageGroupName);
+      CompactionMergeTaskPoolManager.getInstance().init(this::merge);
     }
   }
+
+  /** close compaction merge callback, to release some locks */
+  private void closeCompactionMergeCallBack(boolean isMerge, long timePartitionId) {}
+
 
   /**
    * count all Tsfiles in the storage group which need to be upgraded
