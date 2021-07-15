@@ -891,7 +891,10 @@ public class StorageGroupProcessor {
 
     try {
       if (!config.isEnablePartition() && start != 0) {
-        logger.error("start index in InsertTabletPlan != 0");
+        logger.error("start index in InsertTabletPlan != 0, start index={}", start);
+        for (long time : insertTabletPlan.getTimes()) {
+          logger.error("Time: {}", time);
+        }
         System.exit(1);
       }
       tsFileProcessor.insertTablet(insertTabletPlan, start, end, results);
