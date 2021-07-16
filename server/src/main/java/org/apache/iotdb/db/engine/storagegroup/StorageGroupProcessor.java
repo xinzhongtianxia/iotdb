@@ -739,6 +739,15 @@ public class StorageGroupProcessor {
     }
   }
 
+  private boolean checkSorted(long[] times) {
+    for (int i = 1; i < times.length; i++) {
+      if (times[i] < times[i - 1]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   /**
    * Insert a tablet (rows belonging to the same devices) into this storage group.
    *
@@ -746,6 +755,13 @@ public class StorageGroupProcessor {
    */
   @SuppressWarnings("squid:S3776") // Suppress high Cognitive Complexity warning
   public void insertTablet(InsertTabletPlan insertTabletPlan) throws BatchInsertionException {
+    if (!checkSorted(insertTabletPlan.getTimes())) {
+      logger.error("Tablet is not sorted!!!!!");
+      for (long time : insertTabletPlan.getTimes()) {
+        logger.error("Time: {}", time);
+      }
+      System.exit(1);
+    }
     writeLock();
     try {
       TSStatus[] results = new TSStatus[insertTabletPlan.getRowCount()];
