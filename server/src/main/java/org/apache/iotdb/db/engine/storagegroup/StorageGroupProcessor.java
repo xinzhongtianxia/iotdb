@@ -757,9 +757,7 @@ public class StorageGroupProcessor {
   public void insertTablet(InsertTabletPlan insertTabletPlan) throws BatchInsertionException {
     if (!checkSorted(insertTabletPlan.getTimes())) {
       logger.error("Tablet is not sorted!!!!!");
-      for (long time : insertTabletPlan.getTimes()) {
-        logger.error("Time: {}", time);
-      }
+      logger.error("Time: {}", Arrays.asList(insertTabletPlan.getTimes()));
       System.exit(1);
     }
     writeLock();
@@ -908,9 +906,7 @@ public class StorageGroupProcessor {
     try {
       if (!config.isEnablePartition() && start != 0) {
         logger.error("start index in InsertTabletPlan != 0, start index={}", start);
-        for (long time : insertTabletPlan.getTimes()) {
-          logger.error("Time: {}", time);
-        }
+        logger.error("Time: {}", Arrays.asList(insertTabletPlan.getTimes()));
         System.exit(1);
       }
       tsFileProcessor.insertTablet(insertTabletPlan, start, end, results);
