@@ -24,6 +24,7 @@ from iotdb.utils.Tablet import Tablet
 import random
 import numpy as np
 import time
+import math
 
 
 def create_open_session():
@@ -52,6 +53,19 @@ def check_count(expect, _session, _sql):
     session_data_set.close_operation_handle()
 
 
+def check_query_result(expect, _session, _sql):
+    # raise Exception('not implemented')
+    session_data_set = _session.execute_query_statement(_sql)
+    session_data_set.set_fetch_size(1)
+    idx = 0
+    while session_data_set.has_next():
+        line = session_data_set.next()
+        assert str(line) == expect[idx], f"line {idx}: actual {str(line)} != expect ({expect[idx]})"
+        idx += 1
+    assert idx == len(expect), f"result rows: actual ({idx}) != expect ({len(expect)})"
+    session_data_set.close_operation_handle()
+
+
 def performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=True, valid_result=False, row=10000, col=2000,
                      seed=0):
     session = create_open_session()
@@ -61,7 +75,7 @@ def performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=True, valid_r
 
     VALUES_OF_TYPES = {TSDataType.BOOLEAN: True,
                        TSDataType.DOUBLE: 1.234567,
-                       TSDataType.FLOAT: 1.2,
+                       TSDataType.FLOAT: 1.5,
                        TSDataType.INT32: 100,
                        TSDataType.INT64: 123456789098,
                        TSDataType.TEXT: "test_record"}
@@ -71,9 +85,14 @@ def performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=True, valid_r
                             TSDataType.INT32: "i",
                             TSDataType.INT64: "q",
                             TSDataType.TEXT: str}
+    MEASUREMENT_OF_TYPES = {TSDataType.BOOLEAN: "s0",
+                            TSDataType.DOUBLE: "s1",
+                            TSDataType.FLOAT: "s2",
+                            TSDataType.INT32: "s3",
+                            TSDataType.INT64: "s4",
+                            TSDataType.TEXT: "s5"}
 
-    type_len = len(data_types)
-    measurements_ = ["s" + str(i) for i in range(type_len)]
+    measurements_ = [MEASUREMENT_OF_TYPES[data_type] for data_type in data_types]
 
     for i in range(0, col):
         device_id = "root.sg%d.%d" % (i % 8, i)
@@ -101,11 +120,11 @@ def performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=True, valid_r
         insert_cost += time.perf_counter() - cost_st
         if valid_result:
             # query total line
-            print("execute query for validation")
+            # print("execute query for validation")
             check_count(row, session, "select count(*) from %s" % device_id)
-            # query the first
-            check_query_result(, session, "select count(*) from %s" % device_id)
-            # query the last
+            expect_values = "\t\t".join([str(VALUES_OF_TYPES[data_type]) for data_type in data_types])
+            expect = [str(e) + "\t\t" + expect_values for e in range(row)]
+            check_query_result(expect, session, f"select {','.join(measurements_)} from {device_id}")
             print("query validation have passed")
 
     session.close()
@@ -117,10 +136,12 @@ def performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=True, valid_r
 
 
 valid_result = True
-performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=False, valid_result=valid_result, row=3, col=1)
+performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=False, valid_result=valid_result, row=3, col=2)
 # performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=True, valid_result=valid_result)
 
-# performance_test(data_types=tuple([TSDataType.BOOLEAN, TSDataType.FLOAT, TSDataType.DOUBLE, TSDataType.INT32, TSDataType.INT64]), use_new=False, valid_result=valid_result)
+performance_test(
+    data_types=tuple([TSDataType.BOOLEAN, TSDataType.FLOAT, TSDataType.DOUBLE, TSDataType.INT32, TSDataType.INT64]),
+    use_new=False, valid_result=valid_result, row=10, col=10)
 # performance_test(data_types=tuple([TSDataType.BOOLEAN, TSDataType.FLOAT, TSDataType.DOUBLE, TSDataType.INT32, TSDataType.INT64]), use_new=True, valid_result=valid_result)
 #
 # performance_test(data_types=tuple([TSDataType.BOOLEAN, TSDataType.FLOAT, TSDataType.DOUBLE, TSDataType.INT32, TSDataType.INT64, TSDataType.TEXT]), use_new=False, valid_result=valid_result)
