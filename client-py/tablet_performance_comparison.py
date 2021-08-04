@@ -17,6 +17,7 @@
 #
 
 # Uncomment the following line to use apache-iotdb module installed by pip3
+import struct
 
 from iotdb.Session import Session
 from iotdb.utils.IoTDBConstants import TSDataType
@@ -24,6 +25,24 @@ from iotdb.utils.Tablet import Tablet
 import random
 import numpy as np
 import time
+
+# format_str_list = []
+# values_tobe_packed = []
+# values = ['asd','123','@#$']
+# for v in values:
+#     value_bytes = bytes(v, "utf-8")
+#     format_str_list.append("i")
+#     format_str_list.append(str(len(value_bytes)))
+#     format_str_list.append("s")
+#     values_tobe_packed.append(len(value_bytes))
+#     values_tobe_packed.append(value_bytes)
+# format_str = "".join(format_str_list)
+# st_bytes = struct.pack(format_str, *values_tobe_packed)
+# print("struct:", st_bytes)
+
+# # numpy obj
+# np.
+# exit(1)
 
 
 def create_open_session():
@@ -45,7 +64,8 @@ def check_count(expect, _session, _sql):
         if get_count_line:
             assert False, "select count return more than one line"
         line = session_data_set.next()
-        assert expect == line.get_fields()[0].get_long_value(), "count result error"
+        actual = line.get_fields()[0].get_long_value()
+        assert expect == actual, f"count error: expect {expect} lines, actual {actual} lines"
         get_count_line = True
     if not get_count_line:
         assert False, "select count has no result"
@@ -64,10 +84,15 @@ def check_query_result(expect, _session, _sql):
     assert idx == len(expect), f"result rows: actual ({idx}) != expect ({len(expect)})"
     session_data_set.close_operation_handle()
 
+def prepare_input_data():
+    pass
 
 def performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=True, valid_result=False, row=10000, col=2000,
                      seed=0):
     session = create_open_session()
+    # clean data
+    session.execute_non_query_statement(f'delete timeseries root.*')
+
     st = time.perf_counter()
     random.seed(a=seed, version=2)
     insert_cost = 0
@@ -78,11 +103,11 @@ def performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=True, valid_r
                        TSDataType.INT32: 100,
                        TSDataType.INT64: 123456789098,
                        TSDataType.TEXT: "test_record"}
-    FORMAT_CHAR_OF_TYPES = {TSDataType.BOOLEAN: "?",
-                            TSDataType.DOUBLE: "d",
-                            TSDataType.FLOAT: "f",
-                            TSDataType.INT32: "i",
-                            TSDataType.INT64: "q",
+    FORMAT_CHAR_OF_TYPES = {TSDataType.BOOLEAN: ">?",
+                            TSDataType.DOUBLE: ">d",
+                            TSDataType.FLOAT: ">f",
+                            TSDataType.INT32: ">i",
+                            TSDataType.INT64: ">q",
                             TSDataType.TEXT: str}
     MEASUREMENT_OF_TYPES = {TSDataType.BOOLEAN: "s0",
                             TSDataType.DOUBLE: "s1",
@@ -95,7 +120,6 @@ def performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=True, valid_r
 
     for i in range(0, col):
         device_id = "root.sg%d.%d" % (i % 8, i)
-
         if not use_new:
             timestamps_ = []
             values_ = []
@@ -107,7 +131,12 @@ def performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=True, valid_r
                 values_.append(value_)
         else:
             timestamps_ = np.zeros(row, dtype='>q')
-            values_ = [np.zeros(row, dtype=FORMAT_CHAR_OF_TYPES[data_type]) for data_type in data_types]
+            values_ = []
+            for data_type in data_types:
+                if data_type == TSDataType.TEXT:
+                    values_.append([None for _ in range(row)])
+                else:
+                    values_.append(np.zeros(row, dtype=FORMAT_CHAR_OF_TYPES[data_type]))
             for t in range(0, row):
                 timestamps_[t] = t
                 for j, data_type in enumerate(data_types):
@@ -125,6 +154,8 @@ def performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=True, valid_r
             expect = [str(e) + "\t\t" + expect_values for e in range(row)]
             check_query_result(expect, session, f"select {','.join(measurements_)} from {device_id}")
             # print("query validation have passed")
+    # clean data
+    session.execute_non_query_statement(f'delete timeseries root.*')
 
     session.close()
     end = time.perf_counter()
@@ -135,16 +166,29 @@ def performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=True, valid_r
 
 
 valid_result = True
-use_new = True
+# use_new = True
 # use_new = False
 # performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=use_new, valid_result=valid_result, row=3, col=2)
 # performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=True, valid_result=valid_result)
-
-performance_test(
-    data_types=tuple([TSDataType.BOOLEAN, TSDataType.FLOAT, TSDataType.DOUBLE, TSDataType.INT32, TSDataType.INT64]),
-    use_new=use_new, valid_result=valid_result, row=3, col=3)
-
-# performance_test(data_types=tuple([TSDataType.BOOLEAN, TSDataType.FLOAT, TSDataType.DOUBLE, TSDataType.INT32, TSDataType.INT64]), use_new=True, valid_result=valid_result)
-#
-# performance_test(data_types=tuple([TSDataType.BOOLEAN, TSDataType.FLOAT, TSDataType.DOUBLE, TSDataType.INT32, TSDataType.INT64, TSDataType.TEXT]), use_new=False, valid_result=valid_result)
-# performance_test(data_types=tuple([TSDataType.BOOLEAN, TSDataType.FLOAT, TSDataType.DOUBLE, TSDataType.INT32, TSDataType.INT64, TSDataType.TEXT]), use_new=True, valid_result=valid_result)
+for use_new in [
+    True,
+    False
+]:
+    row = 5000
+    col = 2000
+    # row = 2
+    # col = 2
+    valid_result = False
+    # valid_result = True
+    data_types = tuple([
+        TSDataType.BOOLEAN,
+        TSDataType.FLOAT,
+        TSDataType.DOUBLE,
+        TSDataType.INT32,
+        TSDataType.INT64,
+        TSDataType.TEXT,
+    ])
+    print('-' * 10)
+    print(f"use new: {use_new}, row: {row}, col: {col}. data types: {[str(dt) for dt in data_types]}")
+    performance_test(data_types=data_types, use_new=use_new, valid_result=valid_result, row=row, col=col)
+    print('-' * 10)

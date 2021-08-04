@@ -135,10 +135,31 @@ class Tablet(object):
             format_str = "".join(format_str_list)
             return struct.pack(format_str, *values_tobe_packed)
         else:
-            ret = []
-            for i in range(self.__column_number):
-                # if self.__data_types[i] == TSDataType.FLOAT:
-                ret.append(self.__values.tobytes())
-                # else:
-                #     raise RuntimeError("Unsupported data type:" + str(self.__data_types[i]))
+            # refer to: https://www.guyrutenberg.com/2020/04/04/fast-bytes-concatenation-in-python/
+            bs_len = 0
+            bs_list = []
+            for i, value in enumerate(self.__values):
+                if self.__data_types[i] == TSDataType.TEXT:
+                    format_str_list = [">"]
+                    values_tobe_packed = []
+                    for str_list in value:
+                        # Fot TEXT, it's same as the original solution
+                        value_bytes = bytes(str_list, "utf-8")
+                        format_str_list.append("i")
+                        format_str_list.append(str(len(value_bytes)))
+                        format_str_list.append("s")
+                        values_tobe_packed.append(len(value_bytes))
+                        values_tobe_packed.append(value_bytes)
+                    format_str = "".join(format_str_list)
+                    bs = struct.pack(format_str, *values_tobe_packed)
+                else:
+                    bs = value.tobytes()
+                bs_list.append(bs)
+                bs_len += len(bs)
+            ret = memoryview(bytearray(bs_len))
+            offset = 0
+            for bs in bs_list:
+                _l = len(bs)
+                ret[offset:offset + _l] = bs
+                offset += _l
             return ret
