@@ -24,7 +24,6 @@ from iotdb.utils.Tablet import Tablet
 import random
 import numpy as np
 import time
-import math
 
 
 def create_open_session():
@@ -125,7 +124,7 @@ def performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=True, valid_r
             expect_values = "\t\t".join([str(VALUES_OF_TYPES[data_type]) for data_type in data_types])
             expect = [str(e) + "\t\t" + expect_values for e in range(row)]
             check_query_result(expect, session, f"select {','.join(measurements_)} from {device_id}")
-            print("query validation have passed")
+            # print("query validation have passed")
 
     session.close()
     end = time.perf_counter()
@@ -136,12 +135,15 @@ def performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=True, valid_r
 
 
 valid_result = True
-performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=False, valid_result=valid_result, row=3, col=2)
+use_new = True
+# use_new = False
+# performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=use_new, valid_result=valid_result, row=3, col=2)
 # performance_test(data_types=tuple([TSDataType.FLOAT]), use_new=True, valid_result=valid_result)
 
 performance_test(
     data_types=tuple([TSDataType.BOOLEAN, TSDataType.FLOAT, TSDataType.DOUBLE, TSDataType.INT32, TSDataType.INT64]),
-    use_new=False, valid_result=valid_result, row=10, col=10)
+    use_new=use_new, valid_result=valid_result, row=3, col=3)
+
 # performance_test(data_types=tuple([TSDataType.BOOLEAN, TSDataType.FLOAT, TSDataType.DOUBLE, TSDataType.INT32, TSDataType.INT64]), use_new=True, valid_result=valid_result)
 #
 # performance_test(data_types=tuple([TSDataType.BOOLEAN, TSDataType.FLOAT, TSDataType.DOUBLE, TSDataType.INT32, TSDataType.INT64, TSDataType.TEXT]), use_new=False, valid_result=valid_result)

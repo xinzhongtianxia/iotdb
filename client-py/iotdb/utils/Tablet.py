@@ -19,7 +19,6 @@
 import struct
 
 from iotdb.utils.IoTDBConstants import TSDataType
-# from iotdb.utils.IoTDBConstants import UseNew
 
 
 class Tablet(object):
@@ -40,7 +39,7 @@ class Tablet(object):
         :param values: 2-D List, the values of each row should be the outer list element.
         :param timestamps: List.
         """
-        if len(timestamps) != len(values):
+        if not use_new and len(timestamps) != len(values):
             raise RuntimeError(
                 "Input error! len(timestamps) does not equal to len(values)!"
             )
