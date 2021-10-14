@@ -92,6 +92,7 @@ public class DatabaseConnectController {
   @RequestMapping(value = "/query")
   @ResponseBody
   public String query(@RequestBody String json) {
+    String targetStr = "target";
     try {
       JsonObject jsonObject = GSON.fromJson(json, JsonObject.class);
       if (Objects.isNull(jsonObject)) {
@@ -100,8 +101,6 @@ public class DatabaseConnectController {
       Pair<ZonedDateTime, ZonedDateTime> timeRange = getTimeFromAndTo(jsonObject);
       JsonArray array = jsonObject.getAsJsonArray("targets");
       JsonArray result = new JsonArray();
-      String targetStr = "target";
-      String type = getJsonType(jsonObject);
       for (int i = 0; i < array.size(); i++) {
         JsonObject object = array.get(i).getAsJsonObject();
         if (!object.has(targetStr)) {
@@ -110,6 +109,7 @@ public class DatabaseConnectController {
         String target = object.get(targetStr).getAsString();
         JsonObject obj = new JsonObject();
         obj.addProperty("target", target);
+        String type = getJsonType(object);
         if ("table".equals(type)) {
           setJsonTable(obj, target, timeRange);
         } else if ("timeserie".equals(type)) {
@@ -184,8 +184,6 @@ public class DatabaseConnectController {
    * @return type (string)
    */
   public String getJsonType(JsonObject jsonObject) {
-    JsonArray array = jsonObject.getAsJsonArray("targets");
-    JsonObject object = array.get(0).getAsJsonObject();
-    return object.get("type").getAsString();
+    return jsonObject.get("type").getAsString();
   }
 }
